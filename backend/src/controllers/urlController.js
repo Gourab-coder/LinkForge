@@ -1,5 +1,7 @@
 const urlService = require("../services/urlService");
+const analyticsService = require("../services/analyticsService");
 
+// Convert database column names into the public API response format.
 function toResponse(url, req) {
   return {
     id: url.id,
@@ -37,9 +39,20 @@ async function remove(req, res) {
   return res.status(204).send();
 }
 
+async function analytics(req, res) {
+  const result = await analyticsService.getForUser({
+    urlId: req.params.id,
+    userId: req.user.id,
+    from: req.query.from,
+    to: req.query.to
+  });
+
+  return res.json(result);
+}
+
 async function redirect(req, res) {
   const longUrl = await urlService.redirect(req.params.shortCode, req);
   return res.redirect(302, longUrl);
 }
 
-module.exports = { create, list, getById, remove, redirect };
+module.exports = { create, list, getById, remove, analytics, redirect };

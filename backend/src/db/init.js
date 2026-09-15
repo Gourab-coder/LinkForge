@@ -5,10 +5,7 @@ const pool = require("../config/database");
 
 async function initializeDatabase() {
     try {
-        const sql = fs.readFileSync(
-            path.join(__dirname, "init.sql"),
-            "utf8"
-        );
+        const sql = fs.readFileSync(path.join(__dirname, "init.sql"), "utf8");
 
         await pool.query(sql);
 

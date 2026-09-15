@@ -4,6 +4,7 @@ const authRoutes = require("./routes/authRoutes");
 const urlRoutes = require("./routes/urlRoutes");
 const urlController = require("./controllers/urlController");
 const errorHandler = require("./middleware/errorHandler");
+const { redirectRateLimiter } = require("./middleware/rateLimiter");
 
 const app = express();
 
@@ -22,7 +23,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 
-
+// API routes are kept separate from the public short-link redirect.
 app.use("/api/auth", authRoutes);
 app.use("/api/v1/urls", urlRoutes);
 
@@ -31,16 +32,14 @@ app.get("/", (req, res) => {
     message: "LinkForge backend is running"
   });
 });
-// http://localhost:3000/
 
 app.get("/health", (req, res) => {
   res.json({
     status: "ok"
   });
 });
-// http://localhost:3000/health
 
-app.get("/:shortCode", urlController.redirect);
+app.get("/:shortCode", redirectRateLimiter, urlController.redirect);
 app.use(errorHandler);
 
 module.exports = app;

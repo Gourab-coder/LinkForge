@@ -4,8 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --test tests/**/*.test.js",
     "start": "node src/server.js",
+    "worker": "node src/workers/analyticsWorker.js",
     "dev": "nodemon src/server.js",
     "db:init": "node src/db/init.js"
   },
@@ -14,14 +15,18 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "bullmq": "^6.3.6",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "bcryptjs": "^3.0.2",
+    "ioredis": "^6.0.0",
     "jsonwebtoken": "^9.0.2",
-    "pg": "^8.23.0"
+    "pg": "^8.23.0",
+    "redis": "^6.2.1"
   },
   "devDependencies": {
-    "nodemon": "^3.1.14"
+    "nodemon": "^3.1.14",
+    "supertest": "^7.2.2"
   }
 }
