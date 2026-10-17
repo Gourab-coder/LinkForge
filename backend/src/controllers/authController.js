@@ -12,13 +12,33 @@ function publicUser(user) {
   };
 }
 
-async function register(req, res) {
-  const email = typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : "";
-  const password = typeof req.body.password === "string" ? req.body.password : "";
+// Validate normalized email and password values before database or bcrypt work begins.
+function validateCredentials(body = {}) {
+  const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+  const password = typeof body.password === "string" ? body.password : "";
 
   if (!email || !password) {
-    return res.status(400).json({ message: "Email and password are required" });
+    const error = new Error("Email and password are required");
+    error.statusCode = 400;
+    throw error;
   }
+  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    const error = new Error("A valid email address is required");
+    error.statusCode = 400;
+    throw error;
+  }
+  if (Buffer.byteLength(password, "utf8") > 72) {
+    const error = new Error("Password must be 72 bytes or fewer");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return { email, password };
+}
+
+// Create an account with a bcrypt hash; the database unique constraint handles races.
+async function register(req, res) {
+  const { email, password } = validateCredentials(req.body || {});
 
   if (password.length < 8) {
     return res.status(400).json({ message: "Password must be at least 8 characters" });
@@ -30,22 +50,25 @@ async function register(req, res) {
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
-  const result = await pool.query(
-    "INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email, created_at",
-    [email, passwordHash]
-  );
+  let result;
+  try {
+    result = await pool.query(
+      "INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email, created_at",
+      [email, passwordHash]
+    );
+  } catch (error) {
+    if (error.code === "23505") {
+      return res.status(409).json({ message: "An account with this email already exists" });
+    }
+    throw error;
+  }
 
   const user = result.rows[0];
   return res.status(201).json({ user: publicUser(user), token: generateToken(user) });
 }
 
 async function login(req, res) {
-  const email = typeof req.body.email === "string" ? req.body.email.trim().toLowerCase() : "";
-  const password = typeof req.body.password === "string" ? req.body.password : "";
-
-  if (!email || !password) {
-    return res.status(400).json({ message: "Email and password are required" });
-  }
+  const { email, password } = validateCredentials(req.body || {});
 
   const result = await pool.query(
     "SELECT id, email, password_hash, created_at FROM users WHERE email = $1",
@@ -61,6 +84,7 @@ async function login(req, res) {
   return res.json({ user: publicUser(user), token: generateToken(user) });
 }
 
+// Return only the identity claims needed by the signed-in frontend.
 function me(req, res) {
 	return res.json({ user: req.user });
 }

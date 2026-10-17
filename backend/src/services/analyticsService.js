@@ -1,5 +1,6 @@
 const urlRepository = require("../repositories/urlRepository");
 
+// Validate an optional analytics boundary and normalize it for parameterized SQL.
 function parseDate(value, fieldName) {
   if (value === undefined) return null;
 
@@ -13,6 +14,7 @@ function parseDate(value, fieldName) {
   return date.toISOString();
 }
 
+// Confirm ownership before returning click aggregates for the requested date range.
 async function getForUser({ urlId, userId, from, to }) {
   const url = await urlRepository.findByIdForUser(urlId, userId);
   if (!url) {

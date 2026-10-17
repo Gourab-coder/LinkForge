@@ -1,4 +1,4 @@
-require("dotenv").config();
+require("../config/env");
 
 const { Worker } = require("bullmq");
 
@@ -20,14 +20,17 @@ const worker = new Worker(
   }
 );
 
+// Log job IDs for operations without printing user IP or agent data.
 worker.on("completed", (job) => {
   console.log(`Analytics job completed: ${job.id}`);
 });
 
+// Report queue failures without dumping the entire click payload into logs.
 worker.on("failed", (job, error) => {
-  console.error(`Analytics job failed: ${job ? job.id : "unknown"}`, error);
+  console.error(`Analytics job failed: ${job ? job.id : "unknown"}`, error.message);
 });
 
+// Finish in-flight analytics work before the process exits.
 async function shutdown(signal) {
   console.log(`${signal} received. Shutting down analytics worker...`);
   await worker.close();

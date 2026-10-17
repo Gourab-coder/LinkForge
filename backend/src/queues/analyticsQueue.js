@@ -4,6 +4,7 @@ const connection = require("./queueConnection");
 
 let analyticsQueue;
 
+// Create the analytics queue lazily so API startup owns a single queue instance.
 function getAnalyticsQueue() {
 	if (!analyticsQueue) {
 		analyticsQueue = new Queue("analytics", {
@@ -29,10 +30,12 @@ function getAnalyticsQueue() {
 	return analyticsQueue;
 }
 
+// Queue a click event with an idempotent job ID for safe retries.
 async function enqueueClickEvent(event) {
 	return getAnalyticsQueue().add("click", event, { jobId: event.eventId });
 }
 
+// Close the queue during graceful server shutdown.
 async function closeAnalyticsQueue() {
 	if (analyticsQueue) await analyticsQueue.close();
 }

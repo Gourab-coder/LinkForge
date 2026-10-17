@@ -1,5 +1,6 @@
 const pool = require("../config/database");
 
+// Insert a URL using bound parameters and return only fields used by the API.
 async function createUrl({ userId, longUrl, shortCode, expiresAt }) {
   const result = await pool.query(
     `INSERT INTO urls (user_id, long_url, short_code, expires_at)
@@ -11,6 +12,7 @@ async function createUrl({ userId, longUrl, shortCode, expiresAt }) {
   return result.rows[0];
 }
 
+// Resolve a public short code for redirects.
 async function findByShortCode(shortCode) {
   const result = await pool.query(
     `SELECT id, user_id, long_url, short_code, click_count, created_at, expires_at
@@ -21,6 +23,7 @@ async function findByShortCode(shortCode) {
   return result.rows[0] || null;
 }
 
+// Fetch a link only when both its ID and owner match.
 async function findByIdForUser(id, userId) {
   const result = await pool.query(
     `SELECT id, long_url, short_code, click_count, created_at, expires_at
@@ -31,6 +34,7 @@ async function findByIdForUser(id, userId) {
   return result.rows[0] || null;
 }
 
+// List a single user's links without exposing other accounts' records.
 async function findAllForUser(userId) {
   const result = await pool.query(
     `SELECT id, long_url, short_code, click_count, created_at, expires_at
@@ -41,6 +45,7 @@ async function findAllForUser(userId) {
   return result.rows;
 }
 
+// Delete by owner and ID together to preserve the authorization boundary in SQL.
 async function deleteByIdForUser(id, userId) {
   const result = await pool.query(
     "DELETE FROM urls WHERE id = $1 AND user_id = $2 RETURNING id",
@@ -50,6 +55,7 @@ async function deleteByIdForUser(id, userId) {
   return result.rowCount > 0;
 }
 
+// Write each click once and increment its URL count in the same transaction.
 async function recordClickEvent({
   eventId,
   urlId,
@@ -86,6 +92,7 @@ async function recordClickEvent({
   }
 }
 
+// Build click aggregates using parameterized date filters and queries.
 async function getAnalytics(urlId, { from, to }) {
   const dateFilters = ["url_id = $1"];
   const values = [urlId];

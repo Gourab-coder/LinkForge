@@ -1,5 +1,7 @@
 const jwt = require("jsonwebtoken");
+const { requiredSecret } = require("../config/env");
 
+// Verify bearer tokens with the expected algorithm and reject malformed identity claims.
 function requireAuth(req, res, next) {
   const authorization = req.get("authorization");
   const token = authorization && authorization.startsWith("Bearer ")
@@ -13,8 +15,12 @@ function requireAuth(req, res, next) {
   try {
     req.user = jwt.verify(
       token,
-      process.env.JWT_SECRET || "change_this_secret_in_env"
+      requiredSecret("JWT_SECRET"),
+      { algorithms: ["HS256"] }
     );
+    if (!Number.isSafeInteger(req.user.id) || req.user.id < 1 || typeof req.user.email !== "string") {
+      return res.status(401).json({ message: "Invalid or expired authentication token" });
+    }
     return next();
   } catch (error) {
     return res.status(401).json({ message: "Invalid or expired authentication token" });

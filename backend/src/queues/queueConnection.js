@@ -1,3 +1,5 @@
+require("../config/env");
+
 const redisUrl = new URL(process.env.REDIS_URL || "redis://localhost:6379");
 
 module.exports = {

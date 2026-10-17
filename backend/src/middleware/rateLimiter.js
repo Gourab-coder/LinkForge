@@ -6,15 +6,20 @@ function numberFromEnv(name, fallback) {
 }
 
 function createRateLimiter({ name, windowSeconds, maxRequests }) {
-  const windowSize = Math.floor(windowSeconds);
-  const requestLimit = Math.floor(maxRequests);
+  const windowSize = Math.max(1, Math.floor(windowSeconds));
+  const requestLimit = Math.max(1, Math.floor(maxRequests));
 
   return async function rateLimiter(req, res, next) {
-    if (!redisClient.isReady) return next();
+    if (!redisClient.isReady) {
+      if (process.env.NODE_ENV !== "production") return next();
+      res.setHeader("Retry-After", "1");
+      return res.status(503).json({ message: "Request protection is temporarily unavailable" });
+    }
 
     // Each scope and IP gets an independent fixed one-window counter.
     const windowId = Math.floor(Date.now() / 1000 / windowSize);
-    const key = `rate-limit:${name}:${req.ip}:${windowId}`;
+    const clientAddress = req.ip || req.socket.remoteAddress || "unknown";
+    const key = `rate-limit:${name}:${clientAddress}:${windowId}`;
     const resetAt = (windowId + 1) * windowSize;
 
     try {
@@ -37,8 +42,11 @@ function createRateLimiter({ name, windowSeconds, maxRequests }) {
         });
       }
     } catch (error) {
-      // Redis should not make the API unavailable when rate limiting is degraded.
       console.error(`Rate limiter failed for ${name}:`, error.message);
+      if (process.env.NODE_ENV === "production") {
+        res.setHeader("Retry-After", "1");
+        return res.status(503).json({ message: "Request protection is temporarily unavailable" });
+      }
     }
 
     return next();

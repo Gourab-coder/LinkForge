@@ -6,6 +6,7 @@ const jwt = require("jsonwebtoken");
 const request = require("supertest");
 
 const app = require("../src/app");
+const urlRepository = require("../src/repositories/urlRepository");
 
 const authToken = jwt.sign(
   { id: 1, email: "test@example.com" },
@@ -65,6 +66,44 @@ test("GET /api/v1/urls/:id/analytics rejects requests without authentication", a
 
   assert.equal(response.status, 401);
   assert.equal(response.body.message, "Authentication token is required");
+});
+
+test("GET /api/v1/urls/:id/analytics returns analytics for an authenticated link owner", async () => {
+  const originalFindByIdForUser = urlRepository.findByIdForUser;
+  const originalGetAnalytics = urlRepository.getAnalytics;
+
+  urlRepository.findByIdForUser = async (id, userId) => {
+    assert.equal(id, "42");
+    assert.equal(userId, 1);
+    return { id: 42 };
+  };
+  urlRepository.getAnalytics = async (urlId, range) => {
+    assert.equal(urlId, "42");
+    assert.deepEqual(range, { from: null, to: null });
+    return {
+      totalClicks: 3,
+      uniqueVisitors: 2,
+      devices: { desktop: 2, mobile: 1 },
+      topCountries: []
+    };
+  };
+
+  try {
+    const response = await request(app)
+      .get("/api/v1/urls/42/analytics")
+      .set("Authorization", `Bearer ${authToken}`);
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(response.body, {
+      totalClicks: 3,
+      uniqueVisitors: 2,
+      devices: { desktop: 2, mobile: 1 },
+      topCountries: []
+    });
+  } finally {
+    urlRepository.findByIdForUser = originalFindByIdForUser;
+    urlRepository.getAnalytics = originalGetAnalytics;
+  }
 });
 
 test("POST /api/v1/urls validates the URL before database access", async () => {
